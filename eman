@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+
+# eman: embedded manpage viewer, falling back on traditional pages
+
+set -e
+
+function installed {
+    cmd=$(command -v "${1}")
+
+    [[ -n "${cmd}" ]] && [[ -f "${cmd}" ]]
+    return ${?}
+}
+
+function die {
+    echo "Error: $*" >&2
+    exit 1
+}
+
+installed objcopy || die "I need objcopy."
+
+if [[ "${1}" == [1-9]* ]]; then
+    sect="${1}"
+    cmd="${2}"
+else
+    cmd="${1}"
+fi
+
+if [[ -f "${cmd}" ]]; then
+    cmd_path="${cmd}"
+else
+    cmd_path=$(command -v "${cmd}")
+fi
+
+[[ -z "${cmd_path}" ]] && die "Expected program name or path."
+[[ ! -f "${cmd_path}" ]] && noembed=1
+
+if [[ -z "${noembed}" && "${sect}" != 1 ]]; then
+    tmpfile=$(mktemp /tmp/eman.XXXXXX)
+    trap 'rm -f "${tmpfile}"' INT TERM HUP EXIT
+
+    objcopy -O binary -j .manpage "${cmd_path}" "${tmpfile}"
+
+    [[ -s "${tmpfile}" ]] && man -l "${tmpfile}" && exit
+fi
+
+man "${sect}" "${cmd}"

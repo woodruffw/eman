@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# eman-embed: embed a manpage in an ELF binary
+
+set -e
+
+function usage {
+    >&2 echo "Usage: eman-embed <program> <manpage> <output>"
+    exit 1
+}
+
+function installed {
+    cmd=$(command -v "${1}")
+
+    [[ -n "${cmd}" ]] && [[ -f "${cmd}" ]]
+    return ${?}
+}
+
+function die {
+    echo "Error: $*" >&2
+    exit 1
+}
+
+installed objcopy || die "I need objcopy."
+
+program="${1}"
+manpage="${2}"
+output="${3}"
+
+[[ -f "${program}" ]] || usage
+[[ -f "${manpage}" ]] || usage
+[[ -f "${output}" ]] && >&2 echo "Output already exists: ${output}" && usage
+
+objcopy \
+    --add-section .manpage="${manpage}" \
+    --set-section-flags .manpage=readonly,alloc \
+    "${program}" "${output}" 2>/dev/null
